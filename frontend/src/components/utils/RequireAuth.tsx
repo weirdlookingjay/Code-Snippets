@@ -18,6 +18,9 @@ export default function RequireAuth({ children }: Props) {
     const { isAuthenticated, isLoading, justLoggedOut } = useAppSelector((state) => state.auth);
     const [shouldRender, setShouldRender] = useState(false);
 
+    // Debug logs
+    console.log('RequireAuth:', { isAuthenticated, isLoading, justLoggedOut, shouldRender });
+
     useVerify();
     // Safety: Ensure finishInitialLoad is always called once on mount if stuck
     useEffect(() => {
@@ -63,6 +66,15 @@ export default function RequireAuth({ children }: Props) {
         return (
             <div className="flex justify-center my-8">
                 <Spinner lg />
+            </div>
+        );
+    }
+    // If not authenticated after loading, show error
+    if (!isAuthenticated && !isLoading) {
+        return (
+            <div className="flex flex-col items-center my-8">
+                <div className="text-red-600 font-semibold mb-2">Authentication failed or expired. Please log in again.</div>
+                <button className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded" onClick={() => router.push('/auth/login')}>Go to Login</button>
             </div>
         );
     }

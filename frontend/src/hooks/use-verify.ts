@@ -10,13 +10,16 @@ export default function useVerify() {
   useEffect(() => {
     verify()
       .unwrap()
-      .then(() => {
+      .then((res) => {
+        console.log('useVerify: verify success', res);
         dispatch(setAuth());
       })
-      .catch(() => {
+      .catch((err) => {
+        console.log('useVerify: verify failed', err);
         // Optionally handle error
       })
       .finally(() => {
+        console.log('useVerify: finishInitialLoad');
         dispatch(finishInitialLoad());
       });
   }, [dispatch, verify]);
