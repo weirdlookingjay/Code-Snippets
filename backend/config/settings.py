@@ -12,6 +12,7 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 
 from os import getenv, path
 from pathlib import Path
+from django.core.management.utils import get_random_secret_key
 import dotenv
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -24,7 +25,8 @@ dotenv.load_dotenv(dotenv_file)
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-@0@6&qgv9+f@k7t+#c=m_*nm-(hp9qg)^_m^qy+ysk8qjucam0'
+SECRET_KEY = getenv("DJANGO_SECRET_KEY", get_random_secret_key())
+
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = getenv('DEBUG', 'False') == 'True'
@@ -43,6 +45,9 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'corsheaders',
+    'djoser',
+    'social_django',
     'rest_framework',
     'notes',
     'users',
@@ -51,11 +56,13 @@ INSTALLED_APPS = [
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
+    'corsheaders.middleware.CorsMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'social_django.middleware.SocialAuthExceptionMiddleware',
 ]
 
 ROOT_URLCONF = 'config.urls'
@@ -70,6 +77,7 @@ TEMPLATES = [
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
+                'social_django.context_processors.backends',  
             ],
         },
     },
@@ -136,4 +144,75 @@ STATIC_URL = 'static/'
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 
-AUTH_USER_MODEL = 'users.User'
+AUTH_USER_MODEL = 'users.UserAccount'
+
+AUTHENTICATION_BACKENDS = [
+    'social_core.backends.google.GoogleOAuth2',
+    'social_core.backends.github.GithubOAuth2',
+    'django.contrib.auth.backends.ModelBackend',
+]
+
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': [
+        'users.authentication.CustomJWTAuthentication',
+    ],
+    'DEFAULT_PERMISSION_CLASSES': [
+        'rest_framework.permissions.IsAuthenticated',
+    ]
+}
+
+DJOSER = {
+    'PASSWORD_RESET_CONFIRM_URL': 'password-reset/{uid}/{token}',
+    'SEND_ACTIVATION_EMAIL': True,
+    'ACTIVATION_URL': 'activation/{uid}/{token}',
+    'USER_CREATE_PASSWORD_RETYPE': True,
+    'PASSWORD_RESET_CONFIRM_RETYPE': True,
+    'TOKEN_MODEL': None,
+    'SOCIAL_AUTH_ALLOWED_REDIRECT_URIS': getenv('REDIRECT_URLS').split(',')
+}
+
+AUTH_COOKIE = 'access'
+AUTH_COOKIE_ACCESS_MAX_AGE = 60 * 5  # 5 minues
+AUTH_COOKIE_REFRESH_MAX_AGE = 60 * 60 * 24  # 1 day
+AUTH_COOKIE_SECURE = False  # Always False for localhost/HTTP
+AUTH_COOKIE_HTTP_ONLY = True
+AUTH_COOKIE_PATH = '/'
+AUTH_COOKIE_SAMESITE = 'Lax'  # 'Lax' is safest for localhost, use 'None' only if cross-origin
+
+# https://python-social-auth.readthedocs.io/en/latest/backends/github.html
+SOCIAL_AUTH_GOOGLE_OAUTH2_KEY = getenv('GOOGLE_AUTH_KEY')
+SOCIAL_AUTH_GOOGLE_OAUTH2_SECRET = getenv('GOOGLE_AUTH_SECRET_KEY')
+SOCIAL_AUTH_GOOGLE_OAUTH2_SCOPE = [
+    'https://www.googleapis.com/auth/userinfo.email',
+    'https://www.googleapis.com/auth/userinfo.profile',
+    'openid'
+]
+SOCIAL_AUTH_GOOGLE_OAUTH2_EXTRA_DATA = ['first_name', 'last_name']
+
+SOCIAL_AUTH_GITHUB_KEY = getenv('GITHUB_AUTH_KEY')
+SOCIAL_AUTH_GITHUB_SECRET = getenv('GITHUB_AUTH_SECRET_KEY')
+SOCIAL_AUTH_GITHUB_SCOPE = ['email']
+SOCIAL_AUTH_GITHUB_PRFILE_EXTRA_PARAMS = {
+    'fields': 'email, forst_name, last_name'
+}
+
+CORS_ALLOWED_ORIGINS = [
+    'http://localhost:3000',
+    'http://127.0.0.1:3000',
+]
+CORS_ALLOW_CREDENTIALS = True
+
+# Email Settings
+EMAIL_BACKEND = 'django_ses.SESBackend'
+DEFAULT_FROM_EMAIL = getenv('AWS_SES_FROM_EMAIL')
+
+AWS_SES_ACCESS_KEY_ID = getenv('AWS_SES_ACCESS_KEY_ID')
+AWS_SES_SECRET_ACCESS_KEY = getenv('AWS_SES_SECRET_ACCESS_KEY')
+AWS_REGION_NAME = getenv('AWS_REGION_NAME')
+AWS_DEFAULT_REGION = getenv('AWS_DEFAULT_REGION')
+AWS_SES_REGION_ENDPOINT = f'email.{AWS_REGION_NAME}.amazonaws.com'
+AWS_SES_FROM_EMAIL = getenv('AWS_SES_FROM_EMAIL')
+USE_SES_V2 = True
+
+DOMAIN = getenv('DOMAIN')
+SITE_NAME = getenv('SITE_NAME')

@@ -1,0 +1,9 @@
+{% block content %}
+<p>
+  You're receiving this email because you need to finish activation process on {{ site_name }}.<br>
+  Please go to the following page to activate account:<br>
+  <a href="http://localhost:3000/activation/{{ uid }}/{{ token }}/">
+    http://localhost:3000/activation/{{ uid }}/{{ token }}/
+  </a>
+</p>
+{% endblock %}
