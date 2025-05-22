@@ -49,6 +49,7 @@ INSTALLED_APPS = [
     'djoser',
     'social_django',
     'rest_framework',
+    'django_extensions',
     'notes',
     'users',
 ]

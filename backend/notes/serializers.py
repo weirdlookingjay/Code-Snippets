@@ -10,15 +10,16 @@ class TagSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 class NoteSerializer(serializers.ModelSerializer):
-    tags = TagSerializer(many=True, read_only=True)
+    tags = serializers.PrimaryKeyRelatedField(queryset=Tag.objects.all(), many=True)
+    user = serializers.HiddenField(default=serializers.CurrentUserDefault())
 
     class Meta:
         model = Note
         fields = '__all__'
 
 class CodeSnippetSerializer(serializers.ModelSerializer):
-    tags = TagSerializer(many=True, read_only=True)
-    note = NoteSerializer(read_only=True)
+    tags = serializers.PrimaryKeyRelatedField(queryset=Tag.objects.all(), many=True)
+    note = serializers.PrimaryKeyRelatedField(queryset=Note.objects.all())
 
     class Meta:
         model = CodeSnippet

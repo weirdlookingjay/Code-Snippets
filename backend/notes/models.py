@@ -1,4 +1,5 @@
 from django.db import models
+from django.conf import settings
 
 class Tag(models.Model):
     name = models.CharField(max_length=50, unique=True)
@@ -7,6 +8,7 @@ class Tag(models.Model):
         return self.name
 
 class Note(models.Model):
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='notes')
     title = models.CharField(max_length=200)
     content = models.TextField(blank=True)
     tags = models.ManyToManyField(Tag, related_name='notes', blank=True)
