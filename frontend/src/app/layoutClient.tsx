@@ -32,7 +32,7 @@ function NavWrapper({ children }: { children: React.ReactNode }) {
       <Sidebar />
       <div className="flex-1 flex flex-col">
         <TopBar />
-        <main className="flex-1 p-4 md:p-8 bg-background">{children}</main>
+        <main className="flex-1 p-0 bg-background">{children}</main>
       </div>
     </div>
   );

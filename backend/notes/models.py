@@ -14,6 +14,7 @@ class Note(models.Model):
     tags = models.ManyToManyField(Tag, related_name='notes', blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    deleted = models.BooleanField(default=False)  # <-- Add this line
 
     def __str__(self):
         return self.title

@@ -1,5 +1,6 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
+import { TagMultiSelect } from "./TagMultiSelect";
 interface NoteFormProps {
   initialValues?: {
     title: string;
@@ -19,16 +20,32 @@ export const NoteForm: React.FC<NoteFormProps> = ({
 }) => {
   const [title, setTitle] = useState(initialValues.title);
   const [content, setContent] = useState(initialValues.content);
-  const [tags, setTags] = useState(initialValues.tags?.join(",") || "");
+  const [selectedTags, setSelectedTags] = useState<number[]>(initialValues.tags || []);
+  const [allTags, setAllTags] = useState<{ id: number; name: string }[]>([]);
+  const [tagsLoading, setTagsLoading] = useState(true);
+  const [tagsError, setTagsError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchTags = async () => {
+      setTagsLoading(true);
+      setTagsError(null);
+      try {
+        const res = await fetch("http://localhost:8000/api/tags/", { credentials: "include" });
+        if (!res.ok) throw new Error("Failed to fetch tags");
+        const data = await res.json();
+        setAllTags(data);
+      } catch { // removed unused err
+        setTagsError("Could not load tags.");
+      } finally {
+        setTagsLoading(false);
+      }
+    };
+    fetchTags();
+  }, []);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const tagIds = tags
-      .split(",")
-      .map((t) => t.trim())
-      .filter(Boolean)
-      .map(Number);
-    onSubmit({ title, content, tags: tagIds });
+    onSubmit({ title, content, tags: selectedTags });
   };
 
   return (
@@ -54,14 +71,19 @@ export const NoteForm: React.FC<NoteFormProps> = ({
         />
       </div>
       <div className="flex flex-col gap-2">
-        <label className="block text-base font-semibold mb-1">Tags <span className="text-xs text-zinc-500">(comma-separated IDs)</span></label>
-        <input
-          type="text"
-          className="w-full px-3 py-2 rounded-md border border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 focus:outline-none focus:ring-2 focus:ring-primary transition"
-          value={tags}
-          onChange={(e) => setTags(e.target.value)}
-          placeholder="e.g. 1,2,3"
-        />
+        <label className="block text-base font-semibold mb-1">Tags <span className="text-xs text-zinc-500">(select one or more)</span></label>
+        {tagsLoading ? (
+          <div className="text-sm text-zinc-400">Loading tags...</div>
+        ) : tagsError ? (
+          <div className="text-sm text-red-500">{tagsError}</div>
+        ) : (
+          <TagMultiSelect
+            tags={allTags}
+            value={selectedTags}
+            onChange={setSelectedTags}
+            disabled={loading}
+          />
+        )}
       </div>
       <Button type="submit" className="w-full mt-2" disabled={loading}>
   {loading ? "Saving..." : submitLabel}
