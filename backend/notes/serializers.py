@@ -1,7 +1,7 @@
 from rest_framework import serializers
 from django.contrib.auth import authenticate
 from django.contrib.auth.models import User
-from .models import Tag, Note, CodeSnippet
+from .models import Tag, Note, CodeSnippet, NoteVersion
 
 
 class TagSerializer(serializers.ModelSerializer):
@@ -39,3 +39,8 @@ class CodeSnippetSerializer(serializers.ModelSerializer):
     class Meta:
         model = CodeSnippet
         fields = '__all__'
+
+class NoteVersionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = NoteVersion
+        fields = ['id', 'note', 'content', 'created_at', 'edited_by']

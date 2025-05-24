@@ -5,6 +5,12 @@ import { EditorContent, useEditor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Underline from "@tiptap/extension-underline";
 
+type NoteVersion = {
+  id: number;
+  content: string;
+  created_at: string;
+};
+
 interface Note {
   id: number;
   title: string;
@@ -25,6 +31,43 @@ export default function NoteDetailPage() {
   const [autoSaveStatus, setAutoSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
   const autoSaveTimeout = useRef<NodeJS.Timeout | null>(null);
   const lastAutoSavedContent = useRef<string>("");
+
+  const [showHistory, setShowHistory] = useState(false);
+  const [historyVersions, setHistoryVersions] = useState<NoteVersion[]>([]);
+  const [viewingVersion, setViewingVersion] = useState<NoteVersion | null>(null);
+
+  useEffect(() => {
+    if (showHistory && note?.id) {
+      fetch(`http://localhost:8000/api/notes/${note.id}/versions/`, {
+        credentials: 'include',
+      })
+        .then(res => res.json())
+        .then(data => setHistoryVersions(data))
+        .catch(() => setHistoryVersions([]));
+    }
+  }, [showHistory, note?.id]);
+
+  const [attachments, setAttachments] = useState([
+    // Example mock attachments
+    { id: 1, name: 'image1.png', url: '#', type: 'image/png' },
+    { id: 2, name: 'file1.pdf', url: '#', type: 'application/pdf' },
+  ]);
+
+  const handleAttach = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files.length > 0) {
+      // Mock: just add file name to attachments
+      const file = e.target.files[0];
+      setAttachments((prev) => [
+        ...prev,
+        {
+          id: Date.now(),
+          name: file.name,
+          url: URL.createObjectURL(file),
+          type: file.type,
+        },
+      ]);
+    }
+  };
 
   const editor = useEditor({
     extensions: [StarterKit, Underline],
@@ -110,32 +153,55 @@ export default function NoteDetailPage() {
           {autoSaveStatus === 'saving' && <span>Saving...</span>}
           {autoSaveStatus === 'saved' && <span>Saved</span>}
         </div>
-        <h1 className="text-4xl font-extrabold mb-2 text-zinc-900 dark:text-zinc-100 tracking-tight">
-          {note.title}
-        </h1>
+        <div className="flex items-center justify-between mb-2">
+          <h1 className="text-4xl font-extrabold text-zinc-900 dark:text-zinc-100 tracking-tight">
+            {note.title}
+          </h1>
+          <button
+            className="ml-4 px-4 py-1 rounded bg-zinc-200 dark:bg-zinc-700 text-zinc-900 dark:text-zinc-100 text-sm font-medium hover:bg-zinc-300 dark:hover:bg-zinc-600 border border-zinc-300 dark:border-zinc-600 shadow"
+            onClick={() => setShowHistory(true)}
+          >
+            Version History
+          </button>
+        </div>
         <div className="h-1 w-16 bg-gradient-to-r from-blue-500 to-blue-300 dark:from-blue-700 dark:to-blue-500 rounded mb-6" />
         <div className="flex-1 flex flex-col min-h-0 mb-8">
           {/* Rich Text Toolbar */}
           {editor && (
-            <div className="flex flex-wrap gap-2 mb-4 bg-zinc-100 dark:bg-zinc-800 px-3 py-2 rounded-t-xl border-b border-zinc-200 dark:border-zinc-700">
-              <button type="button" onClick={() => editor.chain().focus().toggleBold().run()} className={`px-2 py-1 rounded font-bold ${editor.isActive('bold') ? 'bg-blue-100 text-blue-700 dark:bg-blue-800 dark:text-blue-100' : 'hover:bg-zinc-200 dark:hover:bg-zinc-700'}`}>B</button>
-              <button type="button" onClick={() => editor.chain().focus().toggleItalic().run()} className={`px-2 py-1 rounded italic ${editor.isActive('italic') ? 'bg-blue-100 text-blue-700 dark:bg-blue-800 dark:text-blue-100' : 'hover:bg-zinc-200 dark:hover:bg-zinc-700'}`}>I</button>
-              <button type="button" onClick={() => editor.chain().focus().toggleUnderline().run()} className={`px-2 py-1 rounded underline ${editor.isActive('underline') ? 'bg-blue-100 text-blue-700 dark:bg-blue-800 dark:text-blue-100' : 'hover:bg-zinc-200 dark:hover:bg-zinc-700'}`}>U</button>
+            <div className="flex flex-wrap gap-2 mb-4 bg-zinc-100 dark:bg-zinc-800 px-3 py-2 rounded-t-xl border-b border-zinc-200 dark:border-zinc-700 items-center">
+              <button type="button" onClick={() => editor?.chain().focus().toggleBold().run()} className={`px-2 py-1 rounded font-bold ${editor?.isActive('bold') ? 'bg-blue-100 text-blue-700 dark:bg-blue-800 dark:text-blue-100' : 'hover:bg-zinc-200 dark:hover:bg-zinc-700'}`}>B</button>
+              <button type="button" onClick={() => editor?.chain().focus().toggleItalic().run()} className={`px-2 py-1 rounded italic ${editor?.isActive('italic') ? 'bg-blue-100 text-blue-700 dark:bg-blue-800 dark:text-blue-100' : 'hover:bg-zinc-200 dark:hover:bg-zinc-700'}`}>I</button>
+              <button type="button" onClick={() => editor?.chain().focus().toggleUnderline().run()} className={`px-2 py-1 rounded underline ${editor?.isActive('underline') ? 'bg-blue-100 text-blue-700 dark:bg-blue-800 dark:text-blue-100' : 'hover:bg-zinc-200 dark:hover:bg-zinc-700'}`}>U</button>
               <span className="mx-2 border-l border-zinc-300 dark:border-zinc-600 h-5" />
-              <button type="button" onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()} className={`px-2 py-1 rounded ${editor.isActive('heading', { level: 1 }) ? 'bg-blue-100 text-blue-700 dark:bg-blue-800 dark:text-blue-100' : 'hover:bg-zinc-200 dark:hover:bg-zinc-700'}`}>H1</button>
-              <button type="button" onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()} className={`px-2 py-1 rounded ${editor.isActive('heading', { level: 2 }) ? 'bg-blue-100 text-blue-700 dark:bg-blue-800 dark:text-blue-100' : 'hover:bg-zinc-200 dark:hover:bg-zinc-700'}`}>H2</button>
+              <button type="button" onClick={() => editor?.chain().focus().toggleHeading({ level: 1 }).run()} className={`px-2 py-1 rounded ${editor?.isActive('heading', { level: 1 }) ? 'bg-blue-100 text-blue-700 dark:bg-blue-800 dark:text-blue-100' : 'hover:bg-zinc-200 dark:hover:bg-zinc-700'}`}>H1</button>
+              <button type="button" onClick={() => editor?.chain().focus().toggleHeading({ level: 2 }).run()} className={`px-2 py-1 rounded ${editor?.isActive('heading', { level: 2 }) ? 'bg-blue-100 text-blue-700 dark:bg-blue-800 dark:text-blue-100' : 'hover:bg-zinc-200 dark:hover:bg-zinc-700'}`}>H2</button>
               <span className="mx-2 border-l border-zinc-300 dark:border-zinc-600 h-5" />
-              <button type="button" onClick={() => editor.chain().focus().toggleBulletList().run()} className={`px-2 py-1 rounded ${editor.isActive('bulletList') ? 'bg-blue-100 text-blue-700 dark:bg-blue-800 dark:text-blue-100' : 'hover:bg-zinc-200 dark:hover:bg-zinc-700'}`}>• List</button>
-              <button type="button" onClick={() => editor.chain().focus().toggleOrderedList().run()} className={`px-2 py-1 rounded ${editor.isActive('orderedList') ? 'bg-blue-100 text-blue-700 dark:bg-blue-800 dark:text-blue-100' : 'hover:bg-zinc-200 dark:hover:bg-zinc-700'}`}>1. List</button>
+              <button type="button" onClick={() => editor?.chain().focus().toggleBulletList().run()} className={`px-2 py-1 rounded ${editor?.isActive('bulletList') ? 'bg-blue-100 text-blue-700 dark:bg-blue-800 dark:text-blue-100' : 'hover:bg-zinc-200 dark:hover:bg-zinc-700'}`}>• List</button>
+              <button type="button" onClick={() => editor?.chain().focus().toggleOrderedList().run()} className={`px-2 py-1 rounded ${editor?.isActive('orderedList') ? 'bg-blue-100 text-blue-700 dark:bg-blue-800 dark:text-blue-100' : 'hover:bg-zinc-200 dark:hover:bg-zinc-700'}`}>1. List</button>
               <span className="mx-2 border-l border-zinc-300 dark:border-zinc-600 h-5" />
-              <button type="button" onClick={() => editor.chain().focus().toggleBlockquote().run()} className={`px-2 py-1 rounded ${editor.isActive('blockquote') ? 'bg-blue-100 text-blue-700 dark:bg-blue-800 dark:text-blue-100' : 'hover:bg-zinc-200 dark:hover:bg-zinc-700'}`}>❝</button>
-              <button type="button" onClick={() => editor.chain().focus().toggleCode().run()} className={`px-2 py-1 rounded font-mono ${editor.isActive('code') ? 'bg-blue-100 text-blue-700 dark:bg-blue-800 dark:text-blue-100' : 'hover:bg-zinc-200 dark:hover:bg-zinc-700'}`}>{'<>'}</button>
+              <button type="button" onClick={() => editor?.chain().focus().toggleBlockquote().run()} className={`px-2 py-1 rounded ${editor?.isActive('blockquote') ? 'bg-blue-100 text-blue-700 dark:bg-blue-800 dark:text-blue-100' : 'hover:bg-zinc-200 dark:hover:bg-zinc-700'}`}>❝</button>
+              <button type="button" onClick={() => editor?.chain().focus().toggleCode().run()} className={`px-2 py-1 rounded font-mono ${editor?.isActive('code') ? 'bg-blue-100 text-blue-700 dark:bg-blue-800 dark:text-blue-100' : 'hover:bg-zinc-200 dark:hover:bg-zinc-700'}`}>{'<>'}</button>
             </div>
           )}
           <EditorContent 
             editor={editor} 
             className="tiptap-editor-container prose max-w-none flex-1 min-h-0 h-full bg-zinc-50 dark:bg-zinc-800 rounded-xl p-5 focus:outline-none focus:ring-2 focus:ring-blue-400 transition-all text-zinc-900 dark:text-zinc-100 shadow-sm" 
           />
+          {/* Attachments List */}
+          {attachments.length > 0 && (
+            <div className="mt-4 flex flex-wrap gap-4">
+              {attachments.map(att => (
+                <div key={att.id} className="flex items-center gap-2 bg-zinc-100 dark:bg-zinc-800 px-3 py-2 rounded shadow-sm">
+                  {att.type.startsWith('image/') ? (
+                    <img src={att.url} alt={att.name} className="w-16 h-16 object-cover rounded" />
+                  ) : (
+                    <a href={att.url} download={att.name} className="underline text-blue-600 dark:text-blue-300" target="_blank" rel="noopener noreferrer">{att.name}</a>
+                  )}
+                  <button onClick={() => setAttachments(attachments.filter(a => a.id !== att.id))} className="ml-2 px-2 py-1 rounded bg-red-200 dark:bg-red-700 text-red-800 dark:text-red-100 text-xs">Remove</button>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
         <div className="flex justify-end">
           <button
@@ -147,6 +213,37 @@ export default function NoteDetailPage() {
           </button>
         </div>
       </div>
+      {/* Version History Modal */}
+      {showHistory && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="bg-white dark:bg-zinc-900 rounded-xl shadow-lg p-6 max-w-lg w-full relative">
+            <button className="absolute top-2 right-2 text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100" onClick={() => setShowHistory(false)}>&times;</button>
+            <h2 className="text-xl font-bold mb-4">Version History</h2>
+            <ul className="space-y-3 max-h-72 overflow-y-auto">
+              {historyVersions.map(v => (
+                <li key={v.id} className="flex items-center justify-between bg-zinc-50 dark:bg-zinc-800 px-3 py-2 rounded">
+                  <span className="text-sm">{new Date(v.created_at).toLocaleString()}</span>
+                  <div className="flex gap-2">
+                    <button className="px-2 py-1 rounded bg-blue-200 dark:bg-blue-700 text-blue-900 dark:text-blue-100 text-xs" onClick={() => setViewingVersion(v)}>View</button>
+                    <button className="px-2 py-1 rounded bg-green-200 dark:bg-green-700 text-green-900 dark:text-green-100 text-xs" onClick={() => { editor?.commands.setContent(v.content); setShowHistory(false); }}>Restore</button>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      )}
+      {/* View Version Modal */}
+      {viewingVersion && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="bg-white dark:bg-zinc-900 rounded-xl shadow-lg p-6 max-w-lg w-full relative">
+            <button className="absolute top-2 right-2 text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100" onClick={() => setViewingVersion(null)}>&times;</button>
+            <h2 className="text-xl font-bold mb-4">Version from {new Date(viewingVersion.created_at).toLocaleString()}</h2>
+            <div className="prose dark:prose-invert max-w-none" dangerouslySetInnerHTML={{ __html: viewingVersion.content }} />
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }

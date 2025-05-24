@@ -1,10 +1,11 @@
 from rest_framework.views import APIView
+from rest_framework import generics, permissions, status
 from rest_framework.response import Response
 from rest_framework import status
 from django.contrib.auth import login
 from rest_framework import viewsets
-from .models import Tag, Note, CodeSnippet
-from .serializers import TagSerializer, NoteSerializer, CodeSnippetSerializer
+from .models import Tag, Note, CodeSnippet, NoteVersion
+from .serializers import TagSerializer, NoteSerializer, CodeSnippetSerializer, NoteVersionSerializer
 class TagViewSet(viewsets.ModelViewSet):
     queryset = Tag.objects.all()
     serializer_class = TagSerializer
@@ -14,6 +15,31 @@ from rest_framework import permissions
 from rest_framework import status
 from rest_framework.response import Response
 
+
+class NoteVersionListView(generics.ListAPIView):
+    serializer_class = NoteVersionSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        note_id = self.kwargs['pk']
+        return NoteVersion.objects.filter(note_id=note_id).order_by('-created_at')
+
+class NoteVersionDetailView(generics.RetrieveAPIView):
+    serializer_class = NoteVersionSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    queryset = NoteVersion.objects.all()
+
+class NoteVersionRestoreView(generics.GenericAPIView):
+    serializer_class = NoteVersionSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, pk, version_id):
+        version = NoteVersion.objects.get(pk=version_id, note_id=pk)
+        note = version.note
+        note.content = version.content
+        note.save()
+        return Response({'status': 'restored'}, status=status.HTTP_200_OK)
+    
 class NoteViewSet(viewsets.ModelViewSet):
     serializer_class = NoteSerializer
     permission_classes = [permissions.IsAuthenticated]
