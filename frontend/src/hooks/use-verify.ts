@@ -3,26 +3,22 @@ import { useAppDispatch } from "@/redux/hooks";
 import { setAuth, finishInitialLoad } from "@/redux/features/authSlice";
 import { useVerifyMutation } from "@/redux/features/authApiSlice";
 
-export default function useVerify() {
+export default function useVerify(skip = false) {
   const [verify] = useVerifyMutation();
   const dispatch = useAppDispatch();
 
   useEffect(() => {
+    if (skip) return;
     verify()
       .unwrap()
       .then((res) => {
-        console.log('useVerify: verify success', res);
         dispatch(setAuth());
       })
-      .catch((err) => {
-        console.log('useVerify: verify failed', err);
-        // Optionally handle error
-      })
+      .catch(() => {})
       .finally(() => {
-        console.log('useVerify: finishInitialLoad');
         dispatch(finishInitialLoad());
       });
-  }, [dispatch, verify]);
+  }, [dispatch, verify, skip]);
 
   return null;
 }

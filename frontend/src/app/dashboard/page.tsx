@@ -1,22 +1,60 @@
 "use client"
 
+import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { FaPlus, FaSearch } from "react-icons/fa";
+import { getErrorMessage } from "@/utils/getErrorMessage";
 
-const pinnedNotes = [
-  { id: 1, title: "Regex Cheatsheet", preview: "Common regex patterns..." },
-  { id: 2, title: "React Patterns", preview: "Hooks, Context, HOCs..." },
-];
+interface Note {
+  id: number;
+  title: string;
+  content: string;
+  tags: number[];
+  created_at: string;
+  updated_at: string;
+  favorite: boolean;
+  preview?: string;
+}
 
-const recentNotes = [
-  { id: 3, title: "How to use Redux Toolkit", updated: "2 hours ago" },
-  { id: 4, title: "Python Regex Cheat Sheet", updated: "Yesterday" },
-  { id: 5, title: "VSCode Shortcuts", updated: "3 days ago" },
-];
 
 const tags = ["React", "Python", "Regex", "All"];
 
 const Page = () => {
+  const [notes, setNotes] = useState<Note[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [noteToDelete, setNoteToDelete] = useState<Note | null>(null);
+  const [deleting, setDeleting] = useState(false);
+
+  useEffect(() => {
+    const fetchNotes = async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const res = await fetch("http://localhost:8000/api/notes/?deleted=false", {
+          credentials: "include",
+        });
+        if (!res.ok) throw new Error("Failed to fetch notes");
+        const data = await res.json();
+        // Sort: favorites first, then by updated_at desc
+        data.sort((a: Note, b: Note) => {
+          if (a.favorite && !b.favorite) return -1;
+          if (!a.favorite && b.favorite) return 1;
+          return new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime();
+        });
+        setNotes(data);
+      } catch (err) {
+        setError(getErrorMessage(err));
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchNotes();
+  }, []);
+
+  const pinnedNotes = notes.filter(note => note.favorite);
+  const recentNotes = notes.slice(0, 3);
+
   return (
     <div className="min-h-screen bg-background text-foreground">
       {/* Main Dashboard */}
@@ -42,14 +80,22 @@ const Page = () => {
         {/* Pinned Notes */}
         <section className="mb-8">
           <h2 className="text-lg font-semibold mb-2">Pinned Notes</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {pinnedNotes.map(note => (
-              <div key={note.id} className="bg-card p-4 rounded-lg shadow hover:shadow-md transition cursor-pointer border-l-4 border-blue-500 dark:border-blue-400">
-                <div className="font-bold text-blue-700 dark:text-blue-400 mb-1">{note.title}</div>
-                <div className="text-muted-foreground text-sm">{note.preview}</div>
-              </div>
-            ))}
-          </div>
+          {loading ? (
+            <div>Loading...</div>
+          ) : error ? (
+            <div className="text-red-500">{error}</div>
+          ) : pinnedNotes.length === 0 ? (
+            <div className="text-muted-foreground">No pinned notes.</div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {pinnedNotes.map(note => (
+                <div key={note.id} className="bg-card p-4 rounded-lg shadow hover:shadow-md transition cursor-pointer border-l-4 border-blue-500 dark:border-blue-400">
+                  <div className="font-bold text-blue-700 dark:text-blue-400 mb-1">{note.title}</div>
+                  <div className="text-muted-foreground text-sm">{note.preview || note.content?.slice(0, 80) + (note.content?.length > 80 ? "..." : "")}</div>
+                </div>
+              ))}
+            </div>
+          )}
         </section>
 
         {/* Tags */}
@@ -66,23 +112,92 @@ const Page = () => {
         {/* Recent Notes */}
         <section>
           <h2 className="text-lg font-semibold mb-2">Recent Notes</h2>
-          <div className="bg-card rounded-lg shadow divide-y divide-border">
-            {recentNotes.map(note => (
-              <div key={note.id} className="flex items-center justify-between px-4 py-3 hover:bg-accent transition">
-                <div>
-                  <div className="font-medium text-foreground">{note.title}</div>
-                  <div className="text-xs text-muted-foreground">Last updated: {note.updated}</div>
+          {loading ? (
+            <div>Loading...</div>
+          ) : error ? (
+            <div className="text-red-500">{error}</div>
+          ) : recentNotes.length === 0 ? (
+            <div className="text-muted-foreground">No recent notes.</div>
+          ) : (
+            <div className="bg-card rounded-lg shadow divide-y divide-border">
+              {recentNotes.map(note => (
+                <div key={note.id} className="flex items-center justify-between px-4 py-3 hover:bg-accent transition">
+                  <div>
+                    <div className="font-medium text-foreground">{note.title}</div>
+                    <div className="text-xs text-muted-foreground">Last updated: {new Date(note.updated_at).toLocaleString()}</div>
+                  </div>
+                  <div className="flex gap-2">
+                    <Link href={`/notes/${note.id}/`} className="text-blue-600 dark:text-blue-400 hover:underline text-xs">Edit</Link>
+                    <button
+                      className="text-red-500 dark:text-red-400 hover:underline text-xs"
+                      onClick={() => setNoteToDelete(note)}
+                      disabled={deleting}
+                    >
+                      Delete
+                    </button>
+                  </div>
                 </div>
-                <div className="flex gap-2">
-                  <Link href={`/notes/${note.id}/edit`} className="text-blue-600 dark:text-blue-400 hover:underline text-xs">Edit</Link>
-                  <button className="text-red-500 dark:text-red-400 hover:underline text-xs">Delete</button>
-                </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </section>
-      </main>
-    </div>
+      {/* Delete Confirmation Dialog */}
+      {noteToDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-30">
+          <div className="bg-white dark:bg-zinc-900 p-6 rounded-xl shadow-xl max-w-sm w-full">
+            <h2 className="text-xl font-bold mb-2">Delete Note?</h2>
+            <div className="mb-4">Are you sure you want to delete <span className="font-semibold">{noteToDelete.title}</span>?</div>
+            <div className="flex justify-end gap-2">
+              <button
+                className="px-4 py-2 rounded bg-zinc-200 dark:bg-zinc-700 text-zinc-900 dark:text-zinc-100 hover:bg-zinc-300 dark:hover:bg-zinc-600"
+                onClick={() => setNoteToDelete(null)}
+                disabled={deleting}
+              >
+                Cancel
+              </button>
+              <button
+                className="px-4 py-2 rounded bg-red-600 text-white hover:bg-red-700 disabled:opacity-60"
+                onClick={async () => {
+                  if (!noteToDelete) return;
+                  setError(null);
+                  setDeleting(true);
+                  try {
+                    await fetch(`http://localhost:8000/api/notes/${noteToDelete.id}/`, {
+                      method: 'PATCH',
+                      headers: { 'Content-Type': 'application/json' },
+                      credentials: 'include',
+                      body: JSON.stringify({ deleted: true }),
+                    });
+                    // Refresh notes
+                    const res = await fetch("http://localhost:8000/api/notes/?deleted=false", {
+                      credentials: "include",
+                    });
+                    if (!res.ok) throw new Error("Failed to fetch notes");
+                    const data = await res.json();
+                    data.sort((a: Note, b: Note) => {
+                      if (a.favorite && !b.favorite) return -1;
+                      if (!a.favorite && b.favorite) return 1;
+                      return new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime();
+                    });
+                    setNotes(data);
+                    setNoteToDelete(null);
+                  } catch (err) {
+                    setError(getErrorMessage(err));
+                  } finally {
+                    setDeleting(false);
+                  }
+                }}
+                disabled={deleting}
+              >
+                {deleting ? 'Deleting...' : 'Delete'}
+              </button>
+            </div>
+            {error && <div className="text-red-500 mt-2">{error}</div>}
+          </div>
+        </div>
+      )}
+    </main>
+  </div>
   );
 };
 

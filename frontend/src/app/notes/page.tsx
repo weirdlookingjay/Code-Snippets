@@ -19,6 +19,7 @@ interface Note {
   tags: number[];
   created_at: string;
   updated_at: string;
+  favorite: boolean;
 }
 
 // Pastel color palette
@@ -54,6 +55,10 @@ function getNoteColor(noteId: number) {
 }
 
 export default function NotesPage() {
+  // Search/filter state
+  const [search, setSearch] = useState("");
+  const [filterTag, setFilterTag] = useState<number | null>(null);
+  const [filterDate, setFilterDate] = useState<string>("");
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
   const notesPerPage = 12;
@@ -78,6 +83,12 @@ export default function NotesPage() {
       });
       if (!res.ok) throw new Error("Failed to fetch notes");
       const data = await res.json();
+      // Sort: favorites first, then by updated_at desc
+      data.sort((a: Note, b: Note) => {
+        if (a.favorite && !b.favorite) return -1;
+        if (!a.favorite && b.favorite) return 1;
+        return new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime();
+      });
       setNotes(data);
     } catch (err: unknown) {
       setError(getErrorMessage(err));
@@ -139,10 +150,57 @@ export default function NotesPage() {
     }
   };
 
+  // Filtered notes
+  const filteredNotes = notes.filter(note => {
+    // Search by title or content
+    const matchesSearch =
+      search.trim() === "" ||
+      note.title.toLowerCase().includes(search.toLowerCase()) ||
+      note.content.toLowerCase().includes(search.toLowerCase()) ||
+      (note.tags && allTags.filter(t => note.tags.includes(t.id)).some(t => t.name.toLowerCase().includes(search.toLowerCase())));
+    // Filter by tag
+    const matchesTag = !filterTag || note.tags.includes(filterTag);
+    // Filter by date
+    const matchesDate = !filterDate || note.created_at.slice(0, 10) === filterDate;
+    return matchesSearch && matchesTag && matchesDate;
+  });
+
   return (
     <>
       <section className="w-full py-12 flex flex-col gap-8 px-4 md:px-8">
         <h1 className="text-2xl md:text-4xl font-bold tracking-tight mb-4">Notes</h1>
+        {/* Search and filter bar */}
+        <div className="flex flex-wrap gap-4 mb-6 items-center">
+          <input
+            type="text"
+            placeholder="Search by title, content, or tag..."
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            className="px-3 py-2 rounded border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 w-64 shadow"
+          />
+          <select
+            value={filterTag ?? ""}
+            onChange={e => setFilterTag(e.target.value ? Number(e.target.value) : null)}
+            className="px-3 py-2 rounded border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 shadow"
+          >
+            <option value="">All Tags</option>
+            {allTags.map(tag => (
+              <option key={tag.id} value={tag.id}>{tag.name}</option>
+            ))}
+          </select>
+          <input
+            type="date"
+            value={filterDate}
+            onChange={e => setFilterDate(e.target.value)}
+            className="px-3 py-2 rounded border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 shadow"
+          />
+          {(search || filterTag || filterDate) && (
+            <button
+              className="px-3 py-2 rounded bg-zinc-200 dark:bg-zinc-700 text-zinc-900 dark:text-zinc-100 border border-zinc-300 dark:border-zinc-600 shadow"
+              onClick={() => { setSearch(""); setFilterTag(null); setFilterDate(""); }}
+            >Clear</button>
+          )}
+        </div>
         {error && (
           <div className="mb-4 flex items-center gap-2 bg-red-500 text-white px-4 py-2 rounded-lg shadow animate-in fade-in">
             <span className="flex-1">{error}</span>
@@ -229,9 +287,7 @@ export default function NotesPage() {
               <ul
                 className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 w-full px-2 md:px-6 lg:px-8"
               >
-                {notes
-                  .slice((currentPage - 1) * notesPerPage, currentPage * notesPerPage)
-                  .map((note) => (
+                {filteredNotes.slice((currentPage - 1) * notesPerPage, currentPage * notesPerPage).map((note) => (
                     <li key={note.id}>
                       <Link href={`/notes/${note.id}`}>
                         <div
@@ -242,8 +298,36 @@ export default function NotesPage() {
                           <div className={`flex-1 flex flex-col py-4 pl-6 pr-4 ${typeof window !== 'undefined' && document.documentElement.classList.contains('dark') ? 'text-zinc-100' : 'text-zinc-900'}`}>
                             <div className="flex items-start justify-between mb-2">
                               <div className={`text-xl font-extrabold truncate ${typeof window !== 'undefined' && document.documentElement.classList.contains('dark') ? 'text-white' : 'text-zinc-900'}`}>{note.title}</div>
-                              <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition">
-                                <button className="p-1 rounded hover:bg-zinc-100 dark:hover:bg-zinc-800" title="Edit" onClick={e => { e.preventDefault(); e.stopPropagation(); setSelectedNote(note); setOpen(true); }}>
+                              <div className="flex gap-2">
+                                <button
+                                  className={`p-1 rounded ${note.favorite ? 'bg-yellow-200 dark:bg-yellow-600' : 'hover:bg-yellow-100 dark:hover:bg-yellow-900'}`}
+                                  title={note.favorite ? "Unpin" : "Pin"}
+                                  onClick={async e => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    try {
+                                      await fetch(`http://localhost:8000/api/notes/${note.id}/`, {
+                                        method: "PATCH",
+                                        headers: { "Content-Type": "application/json" },
+                                        credentials: "include",
+                                        body: JSON.stringify({ favorite: !note.favorite }),
+                                      });
+                                      fetchNotes();
+                                    } catch {}
+                                  }}
+                                >
+                                  {/* Pin/Unpin icon */}
+                                  {note.favorite ? (
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-yellow-600" fill="currentColor" viewBox="0 0 20 20"><path d="M7.293 14.707a1 1 0 001.414 0l7-7a1 1 0 00-1.414-1.414l-7 7a1 1 0 000 1.414z" /></svg>
+                                  ) : (
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-zinc-400" fill="none" viewBox="0 0 20 20" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7.293 14.707a1 1 0 001.414 0l7-7a1 1 0 00-1.414-1.414l-7 7a1 1 0 000 1.414z" /></svg>
+                                  )}
+                                </button>
+                                <button
+                                  className="p-1 rounded hover:bg-blue-100 dark:hover:bg-blue-900"
+                                  title="Edit"
+                                  onClick={e => { e.preventDefault(); e.stopPropagation(); setSelectedNote(note); setOpen(true); }}
+                                >
                                   <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536M9 13h3l8-8a2.828 2.828 0 10-4-4l-8 8v3h3z" /></svg>
                                 </button>
                                 <button
@@ -280,7 +364,7 @@ export default function NotesPage() {
                     </li>
                   ))}
               </ul>
-              {Math.ceil(notes.length / notesPerPage) > 1 && (
+              {Math.ceil(filteredNotes.length / notesPerPage) > 1 && (
                 <div className="flex justify-between mt-12 mb-4">
                   <button
                     className="px-3 py-1 rounded bg-zinc-200 dark:bg-zinc-700 text-zinc-900 dark:text-zinc-100 hover:bg-zinc-300 dark:hover:bg-zinc-600 disabled:opacity-60 border border-zinc-300 dark:border-zinc-600 shadow"
@@ -289,7 +373,7 @@ export default function NotesPage() {
                   >
                     Prev
                   </button>
-                  <span className="px-2 py-1 text-sm">Page {currentPage} of {Math.ceil(notes.length / notesPerPage)}</span>
+                  <span className="px-2 py-1 text-sm">Page {currentPage} of {Math.ceil(filteredNotes.length / notesPerPage)}</span>
                   <button
                     className="px-3 py-1 rounded bg-zinc-200 dark:bg-zinc-700 text-zinc-900 dark:text-zinc-100 hover:bg-zinc-300 dark:hover:bg-zinc-600 disabled:opacity-60 border border-zinc-300 dark:border-zinc-600 shadow"
                     onClick={() => setCurrentPage((p) => Math.min(Math.ceil(notes.length / notesPerPage), p + 1))}

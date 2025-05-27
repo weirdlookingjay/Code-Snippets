@@ -39,6 +39,7 @@ ALLOWED_HOSTS = getenv('DJANGO_ALLOWED_HOSTS',
 # Application definition
 
 INSTALLED_APPS = [
+    'snippets',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -217,3 +218,6 @@ USE_SES_V2 = True
 
 DOMAIN = getenv('DOMAIN')
 SITE_NAME = getenv('SITE_NAME')
+
+MEDIA_URL = '/media/'
+MEDIA_ROOT = BASE_DIR / 'media'

@@ -135,3 +135,13 @@
   box-sizing: border-box;
   overflow-y: auto;
 }
+.tiptap-editor-container img {
+  display: block;
+  max-width: 100%;
+  width: auto;
+  height: auto;
+  max-height: 350px;
+  margin: 0.5em auto;
+  object-fit: contain;
+  box-sizing: border-box;
+}

@@ -1,7 +1,19 @@
-import type { NextConfig } from "next";
+import type { Configuration } from 'webpack';
 
-const nextConfig: NextConfig = {
-  /* config options here */
+const nextConfig = {
+  // ...other config
+  webpack(config: Configuration) {
+    // Type assertion: config.module is always defined in Next.js context
+    const webpackModule = config.module as NonNullable<Configuration['module']>;
+    if (!webpackModule.rules) {
+      webpackModule.rules = [];
+    }
+    webpackModule.rules.push({
+      test: /\.svg$/,
+      issuer: /\.[jt]sx?$/,
+      use: ['@svgr/webpack'],
+    });
+    return config;
+  },
 };
-
-export default nextConfig;
+module.exports = nextConfig;

@@ -1,8 +1,7 @@
-import Image from "next/image";
 import Link from "next/link";
 import { Home, StickyNote, Code2, Tag, Search, User, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import Logo from "../../public/code-snippet-logo.svg"
+import Image from "next/image";
 
 const navItems = [
   { label: "Dashboard", href: "/dashboard", icon: Home },
@@ -18,8 +17,22 @@ export function Sidebar({ className }: { className?: string }) {
   return (
     <aside className={cn("h-full w-64 bg-background border-r hidden md:flex flex-col", className)}>
       <div className="flex items-center justify-center h-16 border-b">
-        <Image src={Logo} alt="CodeHub Logo" width={50} height={50} />
-      </div>
+  {/* Show white logo in light mode, black logo in dark mode */}
+  <Image
+  src="/Logo-Blue-No-slogan.png"
+  alt="CodeHub Logo"
+  width={80}
+  height={80}
+  className="mx-auto block dark:hidden"
+/>
+<Image
+  src="/logo-white.png"
+  alt="CodeHub Logo"
+  width={100}
+  height={100}
+  className="mx-auto hidden dark:block"
+/>
+</div>
       <nav className="flex-1 py-4">
         <ul className="space-y-2">
           {navItems.map(({ label, href, icon: Icon }) => (

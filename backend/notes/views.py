@@ -4,8 +4,8 @@ from rest_framework.response import Response
 from rest_framework import status
 from django.contrib.auth import login
 from rest_framework import viewsets
-from .models import Tag, Note, CodeSnippet, NoteVersion
-from .serializers import TagSerializer, NoteSerializer, CodeSnippetSerializer, NoteVersionSerializer
+from .models import Tag, Note, NoteVersion
+from .serializers import TagSerializer, NoteSerializer, NoteVersionSerializer
 class TagViewSet(viewsets.ModelViewSet):
     queryset = Tag.objects.all()
     serializer_class = TagSerializer
@@ -14,8 +14,24 @@ from rest_framework import permissions
 
 from rest_framework import status
 from rest_framework.response import Response
+from rest_framework.parsers import MultiPartParser, FormParser
+from rest_framework.permissions import IsAuthenticated
+from django.core.files.storage import default_storage
 
+class ImageUploadView(APIView):
+    parser_classes = [MultiPartParser, FormParser]
+    permission_classes = [IsAuthenticated]
 
+    def post(self, request, *args, **kwargs):
+        file_obj = request.FILES.get('file')
+        if not file_obj:
+            return Response({'error': 'No file provided'}, status=400)
+        # Save the file
+        file_path = default_storage.save(f'uploads/{file_obj.name}', file_obj)
+        file_url = default_storage.url(file_path)
+        return Response({'url': request.build_absolute_uri(file_url)})
+    
+    
 class NoteVersionListView(generics.ListAPIView):
     serializer_class = NoteVersionSerializer
     permission_classes = [permissions.IsAuthenticated]
@@ -82,22 +98,12 @@ class NoteViewSet(viewsets.ModelViewSet):
 
         serializer.save()
 
-class CodeSnippetViewSet(viewsets.ModelViewSet):
-    serializer_class = CodeSnippetSerializer
+
+    
     permission_classes = [permissions.IsAuthenticated]
 
-    def get_queryset(self):
-        return CodeSnippet.objects.filter(note__user=self.request.user)     
+    
 
-    def perform_create(self, serializer):
-        # Only allow creating a snippet for a note owned by the user
-        note = serializer.validated_data.get('note')
-        if note.user != self.request.user:
-            raise serializers.ValidationError('You do not own this note.')
-        serializer.save()
+    
 
-    def perform_update(self, serializer):
-        note = serializer.validated_data.get('note')
-        if note.user != self.request.user:
-            raise serializers.ValidationError('You do not own this note.')
-        serializer.save()
+    

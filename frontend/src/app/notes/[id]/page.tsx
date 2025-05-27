@@ -4,6 +4,8 @@ import { useParams } from "next/navigation";
 import { EditorContent, useEditor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Underline from "@tiptap/extension-underline";
+import Image from "@tiptap/extension-image";
+import ResizeImage from "tiptap-extension-resize-image";
 
 type NoteVersion = {
   id: number;
@@ -53,24 +55,74 @@ export default function NoteDetailPage() {
     { id: 2, name: 'file1.pdf', url: '#', type: 'application/pdf' },
   ]);
 
-  const handleAttach = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files.length > 0) {
-      // Mock: just add file name to attachments
-      const file = e.target.files[0];
-      setAttachments((prev) => [
-        ...prev,
-        {
-          id: Date.now(),
-          name: file.name,
-          url: URL.createObjectURL(file),
-          type: file.type,
-        },
-      ]);
+  // const handleAttach = (e: React.ChangeEvent<HTMLInputElement>) => {
+  //   if (e.target.files && e.target.files.length > 0) {
+  //     // Mock: just add file name to attachments
+  //     const file = e.target.files[0];
+  //     setAttachments((prev) => [
+  //       ...prev,
+  //       {
+  //         id: Date.now(),
+  //         name: file.name,
+  //         url: URL.createObjectURL(file),
+  //         type: file.type,
+  //       },
+  //     ]);
+  //   }
+  // };
+
+
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file || !editor) return;
+    // Upload to backend
+    const formData = new FormData();
+    formData.append("file", file);
+    try {
+      const res = await fetch("http://localhost:8000/api/upload/", {
+        method: "POST",
+        body: formData,
+        credentials: "include",
+      });
+      if (!res.ok) throw new Error("Failed to upload image");
+      const data = await res.json();
+      const imageUrl = data.url;
+      editor.chain().focus().setImage({ src: imageUrl }).run();
+    } catch {
+      alert("Image upload failed");
     }
   };
 
   const editor = useEditor({
-    extensions: [StarterKit, Underline],
+    extensions: [
+      StarterKit,
+      Underline,
+      Image.extend({
+        addAttributes() {
+          return {
+            ...this.parent?.(),
+            style: {
+              default: 'display: block; margin: 0.5em auto; max-width: 100%; height: auto;',
+              parseHTML: element => element.getAttribute('style'),
+              renderHTML: attributes => {
+                return { style: attributes.style };
+              },
+            },
+            align: {
+              default: 'center',
+              parseHTML: element => element.style.textAlign || 'center',
+              renderHTML: attributes => {
+                if (!attributes.align) return {};
+                return { style: `display: block; margin: 0.5em auto; max-width: 100%; height: auto; text-align: ${attributes.align};` };
+              },
+            },
+          };
+        },
+      }),
+      ResizeImage,
+    ],
     content: note?.content || "",
     editable: true,
     onUpdate: ({ editor }) => {
@@ -147,7 +199,47 @@ export default function NoteDetailPage() {
 
   return (
     <div className="flex justify-center items-start min-h-[70vh] py-12 px-2">
-      <div className="w-full max-w-2xl h-[70vh] min-h-[500px] bg-white dark:bg-zinc-900 shadow-xl rounded-2xl p-8 relative border border-zinc-100 dark:border-zinc-800 flex flex-col">
+      <div className="w-full max-w-2xl min-h-[600px] bg-white dark:bg-zinc-900 shadow-xl rounded-2xl p-8 relative border border-zinc-100 dark:border-zinc-800 flex flex-col">
+        {/* Insert Image & Alignment Buttons */}
+        <div className="mb-4 flex gap-2 items-center">
+          <button
+            type="button"
+            className="px-3 py-1 rounded bg-blue-100 text-blue-700 hover:bg-blue-200 text-xs font-semibold"
+            onClick={() => fileInputRef.current?.click()}
+          >
+            Insert Image
+          </button>
+          <input
+            type="file"
+            accept="image/*"
+            ref={fileInputRef}
+            style={{ display: "none" }}
+            onChange={handleImageUpload}
+          />
+          {/* Image Alignment Buttons */}
+          <span className="ml-4 text-xs text-zinc-500">Align:</span>
+          <button
+            type="button"
+            className="px-2 py-1 rounded bg-zinc-200 hover:bg-zinc-300 text-xs font-semibold"
+            onClick={() => editor?.chain().focus().updateAttributes('image', { align: 'left', style: 'display: block; margin: 0.5em 0 0.5em 0; max-width: 100%; height: auto; float: left;' }).run()}
+          >
+            Left
+          </button>
+          <button
+            type="button"
+            className="px-2 py-1 rounded bg-zinc-200 hover:bg-zinc-300 text-xs font-semibold"
+            onClick={() => editor?.chain().focus().updateAttributes('image', { align: 'center', style: 'display: block; margin: 0.5em auto; max-width: 100%; height: auto; float: none;' }).run()}
+          >
+            Center
+          </button>
+          <button
+            type="button"
+            className="px-2 py-1 rounded bg-zinc-200 hover:bg-zinc-300 text-xs font-semibold"
+            onClick={() => editor?.chain().focus().updateAttributes('image', { align: 'right', style: 'display: block; margin: 0.5em 0.5em 0.5em auto; max-width: 100%; height: auto; float: right;' }).run()}
+          >
+            Right
+          </button>
+        </div>
         {/* Autosave status indicator */}
         <div className="absolute right-8 top-6 text-xs text-zinc-500 dark:text-zinc-400 select-none">
           {autoSaveStatus === 'saving' && <span>Saving...</span>}
@@ -185,7 +277,7 @@ export default function NoteDetailPage() {
           )}
           <EditorContent 
             editor={editor} 
-            className="tiptap-editor-container prose max-w-none flex-1 min-h-0 h-full bg-zinc-50 dark:bg-zinc-800 rounded-xl p-5 focus:outline-none focus:ring-2 focus:ring-blue-400 transition-all text-zinc-900 dark:text-zinc-100 shadow-sm" 
+            className="tiptap-editor-container prose max-w-none min-h-[350px] bg-zinc-50 dark:bg-zinc-800 rounded-xl p-5 focus:outline-none focus:ring-2 focus:ring-blue-400 transition-all text-zinc-900 dark:text-zinc-100 shadow-sm" 
           />
           {/* Attachments List */}
           {attachments.length > 0 && (

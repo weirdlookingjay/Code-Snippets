@@ -32,7 +32,7 @@ export function TopBar() {
 
   return (
     <header className="flex items-center justify-between h-16 px-4 border-b bg-background">
-      <div className="font-bold text-xl tracking-tight">CodeHub</div>
+      <div className="font-bold text-xl tracking-tight"></div>
       <div className="flex items-center gap-2 relative">
         <ModeToggle />
         <div className="relative" ref={menuRef}>
