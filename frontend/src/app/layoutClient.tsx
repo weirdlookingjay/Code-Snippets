@@ -1,7 +1,7 @@
 "use client";
 
 import { Setup } from "@/components/utils";
-import { Sidebar } from "@/components/Sidebar";
+import { Sidebar } from "../components/Sidebar";
 import { TopBar } from "@/components/TopBar";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import Provider from "@/redux/provider";

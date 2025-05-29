@@ -1,0 +1,6 @@
+/* Fix Monaco Editor overflow in flex containers */
+.monaco-editor, .monaco-editor .overflow-guard {
+  max-width: 100% !important;
+  min-width: 0 !important;
+  box-sizing: border-box !important;
+}

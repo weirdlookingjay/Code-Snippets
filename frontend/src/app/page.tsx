@@ -4,15 +4,18 @@ import { Button } from "@/components/ui/button";
 import { StickyNote, Code2 } from "lucide-react";
 import Link from "next/link";
 import { useRetrieveUserQuery } from "@/redux/features/authApiSlice";
-
+import { useSelector } from "react-redux";
+import { RootState } from "@/redux/store";
 import React, { useState } from "react";
 
 export default function HomePage() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const { data: user, isLoading } = useRetrieveUserQuery();
+  const isAuthenticated = useSelector((state: RootState) => state.auth.isAuthenticated);
+  const isAuthLoading = useSelector((state: RootState) => state.auth.isLoading);
+  // Only fetch user if we think we're authenticated or still loading
+  const { data: user, isLoading } = useRetrieveUserQuery(undefined, { skip: !isAuthenticated && !isAuthLoading });
 
-  // Only show loading if we expect a user fetch
-  if (hasAuthCookie && isLoading) {
+  if (isLoading || isAuthLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center">
         <span className="text-lg animate-pulse">Loading...</span>
@@ -20,8 +23,7 @@ export default function HomePage() {
     );
   }
 
-  if (!user) {
-    // Not logged in: show a clean, wide, professional hero inspired by pieces.app
+  if (!isAuthenticated || !user) {
     return (
       <main className="relative min-h-screen w-full bg-[#232336] font-sans">
         {/* Top Navigation Bar */}

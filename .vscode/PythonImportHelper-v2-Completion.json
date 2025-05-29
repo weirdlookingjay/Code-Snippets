@@ -1490,7 +1490,7 @@
         "kind": 6,
         "importPath": "backend.snippets.serializers",
         "description": "backend.snippets.serializers",
-        "peekOfCode": "class CodeSnippetSerializer(serializers.ModelSerializer):\n    tags = serializers.PrimaryKeyRelatedField(queryset=Tag.objects.all(), many=True)\n    user = serializers.HiddenField(default=serializers.CurrentUserDefault())\n    class Meta:\n        model = CodeSnippet\n        fields = '__all__'",
+        "peekOfCode": "class CodeSnippetSerializer(serializers.ModelSerializer):\n    tags = serializers.PrimaryKeyRelatedField(queryset=Tag.objects.all(), many=True)\n    user = serializers.HiddenField(default=serializers.CurrentUserDefault())\n    createdAt = serializers.DateTimeField(source='created_at', read_only=True)\n    updatedAt = serializers.DateTimeField(source='updated_at', read_only=True)\n    class Meta:\n        model = CodeSnippet\n        fields = ['id', 'user', 'title', 'code', 'language', 'tags', 'createdAt', 'updatedAt']",
         "detail": "backend.snippets.serializers",
         "documentation": {}
     },
